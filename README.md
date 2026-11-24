@@ -4,8 +4,8 @@ Haunt Patrol is a [Kiro Crew](https://kiro.dev/docs/crew/) app that runs a night
 patrol with [Haunt](https://github.com/xan-antx/haunt). Every night at midnight IST it builds and
 serves Lantern Bills (Haunt's demo bill-payment site) on port 3000, sends three ghosts through the
 pay-bill mission, stops the site, and writes a record and a plain-text summary that compares the
-night with the one before. A Crew page shows the latest patrol, with a link to open each ghost's run
-in the Haunt dashboard.
+night with the one before. A Crew page shows the latest patrol: the summary, and for each ghost its
+result, its finding counts and the findings themselves.
 
 The three ghosts are Haunt's simulated users:
 
@@ -35,14 +35,14 @@ Each night the patrol:
    dependencies, Playwright's Chromium),
 2. builds Lantern Bills into `<HAUNT_REPO_ROOT>\crew-app\.patrol\site-build` and serves it on port
    3000,
-3. runs the Haunt engine for each ghost in turn, which saves each run in the Haunt clone's `runs\`
+3. runs the Haunt engine for each ghost in turn, saving each run in `data\runs\` inside the app
    folder,
-4. stops the site and writes the patrol record and `summary.md` to `data\patrols\` inside the app
-   folder.
+4. stops the site and writes the patrol record and `summary.md` to `data\patrols\`, with a log of
+   every step in `data\logs\patrol.log`.
 
-Apart from that build folder (ignored by the Haunt repository) and the saved runs, the Haunt clone
-is not changed. The page's run links open the Haunt dashboard, which you start yourself in the Haunt
-clone.
+Apart from that build folder, which the Haunt repository ignores, the Haunt clone is not changed. In
+particular, the patrol never writes into the clone's `runs\` folder, which the dashboard shows. The
+runner refuses to start if it is pointed there.
 
 ## Install it in Kiro Crew on Windows
 
@@ -126,29 +126,38 @@ engine's code is only stored in the record. The patrol's code is only the proces
   `/apps/haunt-patrol/api/latest` and `/apps/haunt-patrol/api/summary`; the backend receives them as
   `/api/latest` and `/api/summary`. The gateway's health probe calls `/health` directly. If the
   backend is down, the page reads the static copies in `ui/dist/data/`.
-- **Data.** Records are written to `data/patrols/` inside the app folder. In an installed copy that is
-  `%USERPROFILE%\.kiro\crew\apps\haunt-patrol\data\patrols\`. The runner and the backend both find it
-  from their own file location.
+- **Result and log.** Crew ignores a script cron's return value, so `run` raises Crew's
+  `Report(summary)`, which records the summary as the run's result and sends it as a notification.
+  A missing `HAUNT_REPO_ROOT`, engine, runner or `node`, a timeout, or a non-zero patrol exit code
+  raises `RuntimeError`, and Crew marks the run as failed with that text. Every step (the repository
+  root, the node path, the command, the exit code and the runner's output) is appended to
+  `data/logs/patrol.log`.
+- **Data.** Everything is written inside the app folder: records to `data/patrols/`, ghost runs to
+  `data/runs/` (passed to `haunt run --out`), and the log to `data/logs/`. In an installed copy that
+  is `%USERPROFILE%\.kiro\crew\apps\haunt-patrol\data\`. The runner and the backend both find the
+  data folder from their own file location.
 
 ## Environment variables
 
 - `HAUNT_REPO_ROOT`: the Haunt repository root (the folder with `engine/` and `demo-site/`).
   Required; see above.
-- `HAUNT_DASHBOARD_URL`: where the Haunt dashboard runs. Default `http://localhost:3001`.
+- `HAUNT_DASHBOARD_URL`: where the Haunt dashboard runs. Default `http://localhost:3001`. The
+  backend still sends it to the page, but the current page does not link to it.
 - `KIROCREW_PROXY_SECRET`: set by the Crew gateway for the backend process. The backend uses it to
   verify the `X-KiroCrew-Proxy` header. Nobody sets it by hand.
 
 ## Runs in the dashboard
 
-The page links to `<dashboard>/#/run/<runId>`. A run that does not appear there needs its run list
-refreshed: run `npm run collect-runs` in the Haunt clone's `dashboard/`. The app never runs that
-command.
+The page links to the [live Haunt dashboard](https://xan-antx.github.io/haunt/), which shows the
+recorded demo runs. The dashboard lists the Haunt repository's `runs/` folder, and patrol runs are
+kept in the app's `data/runs/` instead. A patrol run only appears there if you copy its folder into
+the clone's `runs/` and run `npm run collect-runs` in `dashboard/`. The app never does either.
 
 ## Development
 
 - `npm test` runs the tests and `npm run typecheck` the type check.
 - `npm run patrol` runs one patrol by hand (with `HAUNT_REPO_ROOT` set). It writes to this folder's
-  `data\patrols\`, which an installed copy does not read; use **Run now** in Crew to fill the page.
+  `data\`, which an installed copy does not read; use **Run now** in Crew to fill the page.
 - `ui/dist/index.mjs` is a committed build artifact. Rebuild it with `npm run build` and commit it
   whenever `ui/src/` changes. After changing files, choose **Update** on the Haunt Patrol tile in
   Crew; the update keeps the records in `data\`.
@@ -163,11 +172,14 @@ kiro.dev/docs/crew/apps (overview, manifest reference, build your first app, pub
 `docs/app-kit/` plus `docs/guides/windows-install.md` in the kirodotdev/KiroCrew repository.
 `test/manifest.test.ts`, `test/crewProxy.test.ts` and `test/uiConfig.test.ts` pin the results.
 
+How a script cron's result is read was checked on 2026-11-24 in the installed Kiro Crew's own source
+(`kiro_crew/cron_script.py` and `kiro_crew/slack/gateway_runtime/cron_exec.py`): a returned value is
+dropped and the run is stored with an empty result; `Report(text)` stores `text` and keeps the job;
+`Done(text)` stores it and removes the job; any other exception fails the run with its text.
+`test/cronScript.run.test.ts` runs the shim with Python against a stand-in runner.
+
 ## Unverified facts
 
-- Script cron details: the docs show the callable taking one `ctx` argument but do not say what a
-  returned value or a raised exception does. The shim returns the summary text and raises on a
-  non-zero patrol exit code, expecting the run to be marked as failed.
 - Whether a script cron sees environment variables the gateway inherited, such as a user-level
   `HAUNT_REPO_ROOT`. The install steps set it as a user variable and restart Crew.
 - Whether `useAppApi()` reaches the app's own `/apps/haunt-patrol/api/` proxy path once it is listed
