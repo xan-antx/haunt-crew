@@ -4,8 +4,8 @@ Haunt Patrol is a [Kiro Crew](https://kiro.dev/docs/crew/) app that runs a night
 patrol with [Haunt](https://github.com/xan-antx/haunt). Every night at midnight IST it builds and
 serves Lantern Bills (Haunt's demo bill-payment site) on port 3000, sends three ghosts through the
 pay-bill mission, stops the site, and writes a record and a plain-text summary that compares the
-night with the one before. A Crew page shows the latest patrol: the summary, and for each ghost its
-result, its finding counts and the findings themselves.
+night with the one before. A Crew page shows the latest patrol: the summary, each ghost's result and
+its findings, and one link to the live Haunt dashboard.
 
 The three ghosts are Haunt's simulated users:
 
@@ -141,17 +141,24 @@ engine's code is only stored in the record. The patrol's code is only the proces
 
 - `HAUNT_REPO_ROOT`: the Haunt repository root (the folder with `engine/` and `demo-site/`).
   Required; see above.
-- `HAUNT_DASHBOARD_URL`: where the Haunt dashboard runs. Default `http://localhost:3001`. The
-  backend still sends it to the page, but the current page does not link to it.
+- `HAUNT_DASHBOARD_URL`: where a local Haunt dashboard runs. Default `http://localhost:3001`. The
+  patrol still writes it into `latest.json` as `dashboardBaseUrl`, but the page does not use it. The
+  page's one link always goes to the live dashboard, `https://xan-antx.github.io/haunt/`.
 - `KIROCREW_PROXY_SECRET`: set by the Crew gateway for the backend process. The backend uses it to
   verify the `X-KiroCrew-Proxy` header. Nobody sets it by hand.
 
+## What the page shows
+
+The page shows the date of the latest patrol (IST), the summary, and one row per ghost with its
+result, its finding counts and a **Show findings** control that lists each finding (type, step and
+title). Below that is one link, to the live Haunt dashboard.
+
 ## Runs in the dashboard
 
-The page links to the [live Haunt dashboard](https://xan-antx.github.io/haunt/), which shows the
-recorded demo runs. The dashboard lists the Haunt repository's `runs/` folder, and patrol runs are
-kept in the app's `data/runs/` instead. A patrol run only appears there if you copy its folder into
-the clone's `runs/` and run `npm run collect-runs` in `dashboard/`. The app never does either.
+The [live dashboard](https://xan-antx.github.io/haunt/) shows the recorded demo runs from the Haunt
+repository's `runs/` folder, not patrol runs. Patrol runs are kept in the app's `data/runs/`, and the
+page has no link to them. To see one in a local dashboard, copy its folder into the Haunt clone's
+`runs/` and run `npm run collect-runs` in its `dashboard/`. The app never does either.
 
 ## Development
 
