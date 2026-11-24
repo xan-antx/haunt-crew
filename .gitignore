@@ -1,0 +1,19 @@
+node_modules/
+*.log
+.env
+.env.*
+
+# Patrol records are runtime output; keep only the empty folder.
+data/*
+!data/.gitkeep
+
+# Build and test output. ui/dist/index.mjs is committed on purpose: a Crew install
+# copies the app and builds nothing. The static fallback files in ui/dist/data/ are runtime output.
+.patrol/
+ui/dist/data/
+coverage/
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
